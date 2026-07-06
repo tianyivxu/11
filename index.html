@@ -2,1515 +2,641 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🌿 治愈拼图 - Healing Puzzle</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>七巧 · Tangram</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap');
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  :root {
-    --bg-primary: #f0f4f8;
-    --bg-secondary: #e2e8f0;
-    --accent: #7c9eb2;
-    --accent-light: #a8c4d8;
-    --accent-dark: #5a7d94;
-    --text: #4a5568;
-    --text-light: #718096;
-    --white: #ffffff;
-    --shadow: rgba(124, 158, 178, 0.15);
-    --success: #9ae6b4;
-    --pink: #fbb6ce;
-    --lavender: #c4b5fd;
+  :root{
+    --paper:#f3ead3; --paper2:#efe2c2; --ink:#3a2f23; --ink2:#6b5a44;
+    --line:#cdb98e; --accent:#c8612a; --ok:#5b9a3e; --shadow:rgba(58,47,35,.18);
+    --p-st:#e8833a; --p-mt:#3a9fe8; --p-lt:#e84a4a; --p-sq:#5bc36a; --p-pg:#c06ae8;
   }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none}
+  body{background:
+    radial-gradient(120% 90% at 10% 0%,rgba(255,255,255,.5),transparent 50%),
+    radial-gradient(120% 90% at 90% 100%,rgba(120,90,40,.12),transparent 55%),
+    linear-gradient(135deg,var(--paper),var(--paper2));
+    background-attachment:fixed}
+  /* paper grain */
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
+    background-image:radial-gradient(rgba(120,90,40,.10) 1px,transparent 1px);
+    background-size:3px 3px}
 
-  body {
-    font-family: 'Noto Sans SC', sans-serif;
-    background: var(--bg-primary);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-    position: relative;
-  }
+  #app{display:flex;flex-direction:column;height:100%}
+  header{display:flex;align-items:center;gap:10px;padding:8px 14px;
+    background:rgba(243,234,211,.7);backdrop-filter:blur(4px);border-bottom:1px solid var(--line);z-index:5}
+  .ttl{font-weight:800;letter-spacing:2px;font-size:18px;white-space:nowrap}
+  .ttl b{color:var(--accent)}
+  .hud{display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+  .pill{background:rgba(255,255,255,.55);border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-variant-numeric:tabular-nums}
+  .stars{color:var(--accent);letter-spacing:1px}
+  .spacer{flex:1}
+  button{font-family:inherit;font-size:13px;color:var(--ink);background:rgba(255,255,255,.6);
+    border:1px solid var(--line);border-radius:10px;padding:6px 10px;cursor:pointer;transition:.12s}
+  button:hover{background:#fff;transform:translateY(-1px)}
+  button:active{transform:translateY(0)}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.primary:hover{background:#b5551f}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .icon{font-size:15px}
 
-  /* 飘落的花瓣背景动画 */
-  .petals-container {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    z-index: 0;
-    overflow: hidden;
-  }
+  main{flex:1;position:relative;overflow:hidden}
+  #stage{position:absolute;inset:0;width:100%;height:100%}
+  svg{display:block;width:100%;height:100%}
 
-  .petal {
-    position: absolute;
-    top: -30px;
-    width: 12px;
-    height: 12px;
-    background: radial-gradient(ellipse at center, #fbb6ce 0%, #f687b3 100%);
-    border-radius: 50% 0 50% 0;
-    opacity: 0.6;
-    animation: petal-fall linear infinite;
-  }
+  /* pieces */
+  .pc{cursor:grab;transition:filter .12s}
+  .pc:hover{filter:brightness(1.05)}
+  .pc.dragging{cursor:grabbing}
+  .pc.locked{cursor:default}
+  .pc.hint{animation:hintpulse 1.2s ease-in-out 3}
+  @keyframes hintpulse{0%,100%{filter:none}50%{filter:drop-shadow(0 0 10px #ffd24a) brightness(1.15)}}
 
-  @keyframes petal-fall {
-    0% {
-      transform: translateY(-10px) rotate(0deg) translateX(0);
-      opacity: 0.6;
-    }
-    25% {
-      transform: translateY(25vh) rotate(90deg) translateX(30px);
-    }
-    50% {
-      transform: translateY(50vh) rotate(180deg) translateX(-20px);
-      opacity: 0.5;
-    }
-    75% {
-      transform: translateY(75vh) rotate(270deg) translateX(25px);
-    }
-    100% {
-      transform: translateY(105vh) rotate(360deg) translateX(-10px);
-      opacity: 0;
-    }
-  }
+  /* overlay panels */
+  .panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    background:rgba(248,240,222,.97);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 14px 40px var(--shadow);padding:26px 32px;text-align:center;min-width:300px;z-index:20}
+  .panel h2{margin:0 0 6px;font-size:24px}
+  .panel p{margin:0 0 16px;color:var(--ink2);font-size:14px}
+  .panel .row{display:flex;gap:10px;justify-content:center}
+  .bigstars{font-size:40px;letter-spacing:6px;color:var(--accent);margin:10px 0 6px}
 
-  /* 头部 */
-  .header {
-    text-align: center;
-    padding: 30px 20px 10px;
-    position: relative;
-    z-index: 1;
-  }
+  .toast{position:absolute;left:50%;bottom:74px;transform:translateX(-50%);
+    background:rgba(58,47,35,.88);color:#fff;padding:7px 16px;border-radius:20px;font-size:13px;
+    opacity:0;transition:.3s;pointer-events:none;z-index:15}
+  .toast.show{opacity:1}
 
-  .header h1 {
-    font-size: 2rem;
-    font-weight: 300;
-    color: var(--accent-dark);
-    letter-spacing: 4px;
-    margin-bottom: 6px;
-  }
+  .lvlbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);
+    display:flex;gap:6px;max-width:90vw;overflow-x:auto;padding:6px;background:rgba(248,240,222,.6);
+    border:1px solid var(--line);border-radius:12px;z-index:6}
+  .lvlbar button{padding:4px 8px;font-size:12px;min-width:34px;border-radius:8px}
+  .lvlbar button.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .lvlbar button.done{color:var(--ok);font-weight:700}
 
-  .header p {
-    font-size: 0.9rem;
-    color: var(--text-light);
-    font-weight: 300;
-  }
-
-  /* 控制栏 */
-  .controls {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 20px;
-    flex-wrap: wrap;
-    position: relative;
-    z-index: 1;
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 24px;
-    font-size: 0.88rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 400;
-    letter-spacing: 0.5px;
-  }
-
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent-light), var(--accent));
-    color: white;
-    box-shadow: 0 4px 15px rgba(124, 158, 178, 0.3);
-  }
-
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(124, 158, 178, 0.4);
-  }
-
-  .btn-secondary {
-    background: var(--white);
-    color: var(--text);
-    border: 1px solid var(--bg-secondary);
-    box-shadow: 0 2px 8px var(--shadow);
-  }
-
-  .btn-secondary:hover {
-    border-color: var(--accent-light);
-    color: var(--accent-dark);
-  }
-
-  .btn-icon {
-    width: 42px;
-    height: 42px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 1.2rem;
-  }
-
-  .btn .icon { font-size: 1.1rem; }
-
-  /* 难度选择 */
-  .difficulty-bar {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    padding: 0 20px 16px;
-    position: relative;
-    z-index: 1;
-  }
-
-  .diff-btn {
-    padding: 8px 18px;
-    border: 1.5px solid var(--bg-secondary);
-    border-radius: 20px;
-    background: var(--white);
-    color: var(--text-light);
-    font-size: 0.82rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-weight: 400;
-  }
-
-  .diff-btn:hover {
-    border-color: var(--accent-light);
-    color: var(--accent);
-  }
-
-  .diff-btn.active {
-    background: linear-gradient(135deg, var(--accent-light), var(--accent));
-    color: white;
-    border-color: transparent;
-    box-shadow: 0 3px 12px rgba(124, 158, 178, 0.3);
-  }
-
-  /* 游戏区域 */
-  .game-area {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 30px;
-    padding: 10px 30px 30px;
-    flex-wrap: wrap;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* 预览图 */
-  .preview-panel {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .preview-label {
-    font-size: 0.82rem;
-    color: var(--text-light);
-    font-weight: 300;
-    letter-spacing: 1px;
-  }
-
-  .preview-canvas {
-    border-radius: 12px;
-    box-shadow: 0 4px 20px var(--shadow);
-    opacity: 0.85;
-    transition: opacity 0.3s;
-    border: 3px solid white;
-  }
-
-  .preview-canvas:hover {
-    opacity: 1;
-  }
-
-  /* 拼图板 */
-  .puzzle-board {
-    position: relative;
-    border-radius: 12px;
-    background: var(--white);
-    box-shadow: 0 4px 20px var(--shadow);
-    border: 3px solid white;
-    overflow: hidden;
-  }
-
-  .puzzle-board canvas {
-    display: block;
-    border-radius: 9px;
-  }
-
-  /* 进度信息 */
-  .progress-bar {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 20px;
-    padding: 10px 20px 20px;
-    position: relative;
-    z-index: 1;
-    flex-wrap: wrap;
-  }
-
-  .progress-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    color: var(--text-light);
-    font-weight: 300;
-  }
-
-  .progress-item .num {
-    font-size: 1.1rem;
-    font-weight: 500;
-    color: var(--accent-dark);
-  }
-
-  /* 完成弹窗 */
-  .modal-overlay {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(240, 244, 248, 0.9);
-    backdrop-filter: blur(8px);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 100;
-    animation: fade-in 0.5s ease;
-  }
-
-  .modal-overlay.show {
-    display: flex;
-  }
-
-  @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  .modal {
-    background: var(--white);
-    border-radius: 24px;
-    padding: 40px 50px;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(124, 158, 178, 0.2);
-    animation: modal-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    max-width: 90vw;
-  }
-
-  @keyframes modal-pop {
-    from { transform: scale(0.8); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-  }
-
-  .modal .emoji { font-size: 3.5rem; margin-bottom: 16px; }
-  .modal h2 {
-    font-size: 1.6rem;
-    font-weight: 300;
-    color: var(--accent-dark);
-    margin-bottom: 10px;
-    letter-spacing: 2px;
-  }
-  .modal p {
-    font-size: 0.9rem;
-    color: var(--text-light);
-    margin-bottom: 24px;
-    font-weight: 300;
-  }
-
-  /* 音量控制 */
-  .volume-control {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 10;
-    background: var(--white);
-    padding: 8px 14px;
-    border-radius: 24px;
-    box-shadow: 0 2px 12px var(--shadow);
-    border: 1px solid var(--bg-secondary);
-  }
-
-  .volume-control input[type="range"] {
-    width: 80px;
-    height: 4px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: var(--bg-secondary);
-    border-radius: 2px;
-    outline: none;
-  }
-
-  .volume-control input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-  }
-
-  .volume-label {
-    font-size: 0.8rem;
-    color: var(--text-light);
-    cursor: pointer;
-    user-select: none;
-  }
-
-  /* 提示文字 */
-  .hint {
-    text-align: center;
-    font-size: 0.82rem;
-    color: var(--text-light);
-    font-weight: 300;
-    padding: 6px 20px;
-    position: relative;
-    z-index: 1;
-    letter-spacing: 0.5px;
-  }
-
-  /* 主题选择 */
-  .theme-bar {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    padding: 0 20px 10px;
-    position: relative;
-    z-index: 1;
-    flex-wrap: wrap;
-  }
-
-  .theme-btn {
-    padding: 7px 16px;
-    border: 1.5px solid var(--bg-secondary);
-    border-radius: 18px;
-    background: var(--white);
-    color: var(--text-light);
-    font-size: 0.8rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-  .theme-btn:hover { border-color: var(--accent-light); }
-  .theme-btn.active {
-    background: linear-gradient(135deg, var(--lavender), var(--pink));
-    color: white;
-    border-color: transparent;
-  }
-
-  /* 动画 */
-  @keyframes piece-snap {
-    0% { transform: scale(1.1); }
-    50% { transform: scale(0.95); }
-    100% { transform: scale(1); }
-  }
-
-  .snap-anim {
-    animation: piece-snap 0.3s ease;
-  }
-
-  /* 响应式 */
-  @media (max-width: 768px) {
-    .game-area {
-      flex-direction: column;
-      align-items: center;
-      padding: 10px 15px 30px;
-      gap: 15px;
-    }
-    .header h1 { font-size: 1.5rem; }
-    .controls { gap: 8px; padding: 12px 15px; }
-    .btn { padding: 8px 14px; font-size: 0.82rem; }
-  }
+  .help{position:absolute;right:12px;top:60px;font-size:11px;color:var(--ink2);background:rgba(248,240,222,.7);
+    border:1px solid var(--line);border-radius:10px;padding:8px 10px;line-height:1.6;z-index:6;max-width:170px}
+  .help b{color:var(--accent)}
+  @media(max-width:560px){.help{display:none}.ttl{font-size:15px}.hud{font-size:12px}}
+  .hint-mini{position:absolute;bottom:6px;left:8px;font-size:11px;color:var(--ink2);z-index:6}
 </style>
 </head>
 <body>
-
-<!-- 飘落花瓣 -->
-<div class="petals-container" id="petals"></div>
-
-<!-- 头部 -->
-<div class="header">
-  <h1>🌿 治愈拼图</h1>
-  <p>慢下来，感受每一片的归处</p>
+<div id="app">
+  <header>
+    <div class="ttl">七<b>巧</b></div>
+    <div class="hud"><span class="pill">第 <b id="lvNum">1</b> 关</span></div>
+    <div class="hud"><span class="pill">⏱ <b id="timer">0:00</b></span></div>
+    <div class="hud"><span class="pill">💡 <b id="hintLeft">2</b></span></div>
+    <div class="hud"><span class="pill stars" id="starView">★★★</span></div>
+    <div class="spacer"></div>
+    <button id="btnHint" title="提示(每关2次)">💡 提示</button>
+    <button id="btnReset" title="重玩本关">↺ 重置</button>
+    <button id="btnPrev">‹</button>
+    <button id="btnNext">›</button>
+    <button id="btnSound" class="icon" title="静音">🔊</button>
+  </header>
+  <main>
+    <div id="stage"><svg id="svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="help">
+      <b>玩法</b><br>
+      拖动方块拼入灰色轮廓<br>
+      双击 / R键 = 旋转45°<br>
+      越快完成星级越高<br>
+      💡提示每关2次
+    </div>
+    <div class="toast" id="toast"></div>
+    <div class="lvlbar" id="lvlbar"></div>
+  </main>
 </div>
-
-<!-- 主题选择 -->
-<div class="theme-bar">
-  <button class="theme-btn active" data-theme="cherry">🌸 樱花</button>
-  <button class="theme-btn" data-theme="ocean">🌊 海洋</button>
-  <button class="theme-btn" data-theme="forest">🌲 森林</button>
-  <button class="theme-btn" data-theme="starry">🌙 星空</button>
-</div>
-
-<!-- 难度 -->
-<div class="difficulty-bar">
-  <button class="diff-btn" data-size="3">简单 3×3</button>
-  <button class="diff-btn active" data-size="4">舒适 4×4</button>
-  <button class="diff-btn" data-size="5">挑战 5×5</button>
-</div>
-
-<!-- 控制 -->
-<div class="controls">
-  <button class="btn btn-primary" id="btn-shuffle">
-    <span class="icon">🔀</span> 打乱拼图
-  </button>
-  <button class="btn btn-secondary" id="btn-show-original">
-    <span class="icon">👁️</span> 预览
-  </button>
-  <button class="btn btn-secondary btn-icon" id="btn-sound" title="音效开关">
-    🔊
-  </button>
-  <button class="btn btn-secondary btn-icon" id="btn-music" title="背景乐开关">
-    🎵
-  </button>
-</div>
-
-<!-- 提示 -->
-<div class="hint" id="hint-text">拖动碎片到正确位置，听一听它们归位的轻响 🌿</div>
-
-<!-- 进度 -->
-<div class="progress-bar">
-  <div class="progress-item">
-    <span>已完成</span>
-    <span class="num" id="pieces-done">0</span>
-    <span>/</span>
-    <span class="num" id="pieces-total">16</span>
-  </div>
-  <div class="progress-item">
-    <span>用时</span>
-    <span class="num" id="timer">00:00</span>
-  </div>
-  <div class="progress-item">
-    <span>移动</span>
-    <span class="num" id="moves">0</span>
-    <span>次</span>
-  </div>
-</div>
-
-<!-- 游戏区域 -->
-<div class="game-area">
-  <div class="preview-panel">
-    <span class="preview-label">✨ 原图参考</span>
-    <canvas class="preview-canvas" id="preview-canvas" width="180" height="180"></canvas>
-  </div>
-  <div class="puzzle-board">
-    <canvas id="puzzle-canvas"></canvas>
-  </div>
-</div>
-
-<!-- 完成弹窗 -->
-<div class="modal-overlay" id="modal">
-  <div class="modal">
-    <div class="emoji">🎉</div>
-    <h2>拼图完成！</h2>
-    <p id="modal-msg">你用了 <strong>--</strong> 次移动，耗时 <strong>--</strong></p>
-    <button class="btn btn-primary" onclick="closeModal()">
-      <span class="icon">🔄</span> 再来一局
-    </button>
-  </div>
-</div>
-
-<!-- 音量控制 -->
-<div class="volume-control">
-  <span class="volume-label" id="vol-label">🔊</span>
-  <input type="range" id="volume-slider" min="0" max="100" value="50">
-</div>
-
 <script>
-// ========== 音频系统 ==========
-const AudioSystem = {
-  ctx: null,
-  bgOsc: null,
-  bgGain: null,
-  masterGain: null,
-  soundOn: true,
-  musicOn: true,
-  volume: 0.5,
-  musicPlaying: false,
-
-  init() {
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.value = this.volume;
-    this.masterGain.connect(this.ctx.destination);
-  },
-
-  ensureCtx() {
-    if (!this.ctx) this.init();
-    if (this.ctx.state === 'suspended') this.ctx.resume();
-  },
-
-  // 碎片归位音效 - 温柔的钟琴声
-  playSnap() {
-    if (!this.soundOn) return;
-    this.ensureCtx();
-    const ctx = this.ctx;
-    const now = ctx.currentTime;
-
-    // 主音 - 清脆的钟琴声
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, now);
-    osc.frequency.exponentialRampToValueAtTime(660, now + 0.3);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-    osc.connect(gain).connect(this.masterGain);
-    osc.start(now);
-    osc.stop(now + 0.5);
-
-    // 泛音
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(1320, now);
-    gain2.gain.setValueAtTime(0.06, now);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-    osc2.connect(gain2).connect(this.masterGain);
-    osc2.start(now);
-    osc2.stop(now + 0.3);
-  },
-
-  // 拾起碎片音效
-  playPickup() {
-    if (!this.soundOn) return;
-    this.ensureCtx();
-    const ctx = this.ctx;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(520, now);
-    osc.frequency.exponentialRampToValueAtTime(780, now + 0.15);
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-    osc.connect(gain).connect(this.masterGain);
-    osc.start(now);
-    osc.stop(now + 0.2);
-  },
-
-  // 完成音效 - 悦耳的和弦
-  playComplete() {
-    if (!this.soundOn) return;
-    this.ensureCtx();
-    const ctx = this.ctx;
-    const now = ctx.currentTime;
-    const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, now + i * 0.15);
-      gain.gain.linearRampToValueAtTime(0.12, now + i * 0.15 + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 1.2);
-      osc.connect(gain).connect(this.masterGain);
-      osc.start(now + i * 0.15);
-      osc.stop(now + i * 0.15 + 1.2);
-    });
-  },
-
-  // 背景音乐 - 舒缓的 ambient 和弦循环
-  startMusic() {
-    if (this.musicPlaying) return;
-    this.ensureCtx();
-    this.musicPlaying = true;
-
-    const ctx = this.ctx;
-    const master = ctx.createGain();
-    master.gain.value = 0.08;
-    master.connect(this.masterGain);
-
-    // 柔和的和弦进行
-    const chords = [
-      [261.6, 329.6, 392.0],  // C
-      [220.0, 277.2, 329.6],  // Am
-      [246.9, 311.1, 370.0],  // B-
-      [196.0, 246.9, 293.7],  // G
-    ];
-
-    let chordIndex = 0;
-
-    const playChord = () => {
-      if (!this.musicOn) { this.musicPlaying = false; return; }
-      const chord = chords[chordIndex % chords.length];
-      chordIndex++;
-      const now = ctx.currentTime;
-
-      chord.forEach(freq => {
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        // 添加轻微颤音
-        const vibrato = ctx.createOscillator();
-        const vibratoGain = ctx.createGain();
-        vibrato.frequency.value = 4;
-        vibratoGain.gain.value = 2;
-        vibrato.connect(vibratoGain).connect(osc.frequency);
-        vibrato.start(now);
-
-        g.gain.setValueAtTime(0, now);
-        g.gain.linearRampToValueAtTime(0.3, now + 0.8);
-        g.gain.linearRampToValueAtTime(0.2, now + 2);
-        g.gain.linearRampToValueAtTime(0, now + 3.5);
-        osc.connect(g).connect(master);
-        osc.start(now);
-        osc.stop(now + 4);
-        vibrato.stop(now + 4);
-      });
-
-      this._musicTimer = setTimeout(playChord, 3200);
-    };
-
-    playChord();
-  },
-
-  stopMusic() {
-    this.musicOn = false;
-    this.musicPlaying = false;
-    if (this._musicTimer) clearTimeout(this._musicTimer);
-  },
-
-  setVolume(v) {
-    this.volume = v;
-    if (this.masterGain) this.masterGain.gain.value = v;
-  }
+"use strict";
+/* ============ 常量与七块定义 ============ */
+const S2 = Math.SQRT2, H = Math.SQRT1_2; // √2 与 √2/2
+const U = 64;          // 单位像素(小三角直角边)
+const SNAP_PX = U*0.32; // 位置吸附容差
+const SNAP_DEG = 24;    // 角度容差
+// 七块类型: lt大三角x2, mt中三角, st小三角x2, sq正方形, pg平行四边形
+const PIECE_DEFS = {
+  lt: { verts:[[0,0],[2,0],[0,2]], color:'#e84a4a', sym:90 },        // 等腰直角,无旋转对称(实际0)
+  mt: { verts:[[0,0],[S2,0],[0,S2]], color:'#3a9fe8', sym:0 },
+  st: { verts:[[0,0],[1,0],[0,1]], color:'#e8833a', sym:0 },
+  sq: { verts:[[0,0],[1,0],[1,1],[0,1]], color:'#5bc36a', sym:90 },
+  pg: { verts:[[0,0],[S2,0],[S2+H,H],[H,H]], color:'#c06ae8', sym:180 }
 };
+// 每块的对称角度(可接受旋转步长)
+const SYM = { lt:0, mt:0, st:0, sq:90, pg:180 };
+// 关卡使用顺序: 类型id; lt与st各有2个,程序区分
+const ALL_TYPES = ['lt','lt','mt','st','st','sq','pg'];
+// 颜色给同类型不同实例区分
+const COLORS = { lt0:'#e84a4a', lt1:'#d8403f', mt:'#3a9fe8', st0:'#e8833a', st1:'#f0a040', sq:'#5bc36a', pg:'#c06ae8' };
 
-// ========== 图片生成 ==========
-const Themes = {
-  cherry: (ctx, w, h) => {
-    // 樱花渐变背景
-    const bg = ctx.createLinearGradient(0, 0, w, h);
-    bg.addColorStop(0, '#fce4ec');
-    bg.addColorStop(0.5, '#f8bbd0');
-    bg.addColorStop(1, '#e8f5e9');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
-
-    // 樱花树
-    ctx.save();
-    // 树干
-    ctx.strokeStyle = '#8d6e63';
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(w * 0.5, h * 0.85);
-    ctx.lineTo(w * 0.5, h * 0.55);
-    ctx.stroke();
-    // 树枝
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(w * 0.5, h * 0.6);
-    ctx.lineTo(w * 0.35, h * 0.45);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(w * 0.5, h * 0.6);
-    ctx.lineTo(w * 0.65, h * 0.4);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(w * 0.5, h * 0.58);
-    ctx.lineTo(w * 0.48, h * 0.35);
-    ctx.stroke();
-
-    // 樱花花朵
-    const drawFlower = (x, y, r) => {
-      ctx.save();
-      ctx.translate(x, y);
-      for (let i = 0; i < 5; i++) {
-        ctx.beginPath();
-        ctx.ellipse(0, -r * 0.6, r * 0.4, r * 0.7, (Math.PI * 2 / 5) * i, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, ${180 + Math.random() * 40}, ${200 + Math.random() * 30}, 0.85)`;
-        ctx.fill();
-      }
-      // 花心
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.2, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff9c4';
-      ctx.fill();
-      ctx.restore();
-    };
-
-    // 树上和空中散落的樱花
-    const flowers = [
-      [0.38, 0.42, 8], [0.45, 0.33, 10], [0.52, 0.38, 9],
-      [0.62, 0.37, 7], [0.55, 0.5, 6], [0.42, 0.55, 8],
-      [0.3, 0.6, 5], [0.68, 0.55, 6], [0.5, 0.28, 7],
-      [0.25, 0.3, 6], [0.72, 0.35, 8], [0.58, 0.22, 5],
-    ];
-    flowers.forEach(([px, py, r]) => drawFlower(w * px, h * py, r));
-
-    // 飘落的花瓣
-    ctx.restore();
-    for (let i = 0; i < 25; i++) {
-      ctx.save();
-      const x = Math.random() * w;
-      const y = Math.random() * h;
-      const size = 3 + Math.random() * 5;
-      ctx.translate(x, y);
-      ctx.rotate(Math.random() * Math.PI);
-      ctx.beginPath();
-      ctx.ellipse(0, 0, size, size * 0.6, 0, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, ${180 + Math.random() * 50}, ${200 + Math.random() * 30}, ${0.4 + Math.random() * 0.4})`;
-      ctx.fill();
-      ctx.restore();
-    }
-
-    // 草地
-    const grassGrad = ctx.createLinearGradient(0, h * 0.82, 0, h);
-    grassGrad.addColorStop(0, '#c8e6c9');
-    grassGrad.addColorStop(1, '#a5d6a7');
-    ctx.fillStyle = grassGrad;
-    ctx.fillRect(0, h * 0.82, w, h * 0.18);
-
-    // 落花草地
-    for (let i = 0; i < 15; i++) {
-      ctx.beginPath();
-      ctx.ellipse(
-        Math.random() * w, h * 0.84 + Math.random() * h * 0.14,
-        4 + Math.random() * 4, 3 + Math.random() * 3,
-        Math.random() * Math.PI, 0, Math.PI * 2
-      );
-      ctx.fillStyle = `rgba(255, 180, 200, ${0.3 + Math.random() * 0.3})`;
-      ctx.fill();
-    }
-  },
-
-  ocean: (ctx, w, h) => {
-    // 海洋渐变
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.5);
-    skyGrad.addColorStop(0, '#b3e5fc');
-    skyGrad.addColorStop(1, '#e1f5fe');
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, w, h * 0.5);
-
-    // 太阳
-    const sunGrad = ctx.createRadialGradient(w * 0.75, h * 0.2, 5, w * 0.75, h * 0.2, 40);
-    sunGrad.addColorStop(0, '#fff9c4');
-    sunGrad.addColorStop(0.5, '#fff176');
-    sunGrad.addColorStop(1, 'rgba(255,241,118,0)');
-    ctx.fillStyle = sunGrad;
-    ctx.fillRect(w * 0.55, h * 0.05, w * 0.4, w * 0.4);
-
-    // 云
-    const drawCloud = (x, y, scale) => {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(scale, scale);
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.beginPath();
-      ctx.arc(0, 0, 15, 0, Math.PI * 2);
-      ctx.arc(15, -5, 18, 0, Math.PI * 2);
-      ctx.arc(32, 0, 14, 0, Math.PI * 2);
-      ctx.arc(15, 8, 12, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    };
-    drawCloud(w * 0.2, h * 0.15, 1);
-    drawCloud(w * 0.6, h * 0.1, 0.7);
-    drawCloud(w * 0.85, h * 0.22, 0.5);
-
-    // 海面
-    const seaGrad = ctx.createLinearGradient(0, h * 0.5, 0, h);
-    seaGrad.addColorStop(0, '#4fc3f7');
-    seaGrad.addColorStop(0.4, '#29b6f6');
-    seaGrad.addColorStop(1, '#0288d1');
-    ctx.fillStyle = seaGrad;
-    ctx.fillRect(0, h * 0.5, w, h * 0.5);
-
-    // 波浪
-    for (let wave = 0; wave < 4; wave++) {
-      ctx.beginPath();
-      ctx.moveTo(0, h * 0.5 + wave * 20);
-      for (let x = 0; x <= w; x += 5) {
-        const y = h * 0.5 + wave * 20 + Math.sin((x + wave * 30) * 0.03) * (6 - wave);
-        ctx.lineTo(x, y);
-      }
-      ctx.strokeStyle = `rgba(255,255,255,${0.15 - wave * 0.03})`;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
-
-    // 海面反光
-    for (let i = 0; i < 20; i++) {
-      ctx.beginPath();
-      const x = Math.random() * w;
-      const y = h * 0.52 + Math.random() * h * 0.4;
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + 10 + Math.random() * 15, y);
-      ctx.strokeStyle = `rgba(255,255,255,${0.2 + Math.random() * 0.3})`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-
-    // 远处小岛
-    ctx.beginPath();
-    ctx.ellipse(w * 0.15, h * 0.5, 35, 12, 0, 0, Math.PI * 2);
-    ctx.fillStyle = '#66bb6a';
-    ctx.fill();
-    // 岛上山
-    ctx.beginPath();
-    ctx.moveTo(w * 0.15 - 20, h * 0.5);
-    ctx.lineTo(w * 0.15, h * 0.38);
-    ctx.lineTo(w * 0.15 + 20, h * 0.5);
-    ctx.fillStyle = '#81c784';
-    ctx.fill();
-  },
-
-  forest: (ctx, w, h) => {
-    // 森林背景
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#e8f5e9');
-    bg.addColorStop(0.4, '#c8e6c9');
-    bg.addColorStop(1, '#a5d6a7');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
-
-    // 树干
-    const drawTree = (x, y, hTrunk, wTrunk, size) => {
-      ctx.fillStyle = '#6d4c41';
-      ctx.fillRect(x - wTrunk / 2, y - hTrunk, wTrunk, hTrunk);
-      // 树冠
-      ctx.beginPath();
-      ctx.moveTo(x - size, y - hTrunk);
-      ctx.lineTo(x + size, y - hTrunk);
-      ctx.lineTo(x, y - hTrunk - size * 1.2);
-      ctx.closePath();
-      ctx.fillStyle = `hsl(${120 + Math.random() * 20}, 40%, ${35 + Math.random() * 15}%)`;
-      ctx.fill();
-      // 第二层
-      ctx.beginPath();
-      ctx.moveTo(x - size * 0.8, y - hTrunk - size * 0.4);
-      ctx.lineTo(x + size * 0.8, y - hTrunk - size * 0.4);
-      ctx.lineTo(x, y - hTrunk - size * 1.8);
-      ctx.closePath();
-      ctx.fillStyle = `hsl(${120 + Math.random() * 15}, 45%, ${40 + Math.random() * 10}%)`;
-      ctx.fill();
-    };
-
-    drawTree(w * 0.3, h * 0.75, 30, 6, 35);
-    drawTree(w * 0.7, h * 0.7, 35, 7, 40);
-    drawTree(w * 0.1, h * 0.8, 25, 5, 28);
-    drawTree(w * 0.85, h * 0.78, 28, 5, 30);
-    drawTree(w * 0.5, h * 0.72, 32, 6, 38);
-
-    // 小径
-    ctx.beginPath();
-    ctx.moveTo(w * 0.4, h);
-    ctx.quadraticCurveTo(w * 0.45, h * 0.6, w * 0.55, 0);
-    ctx.lineTo(w * 0.6, 0);
-    ctx.quadraticCurveTo(w * 0.5, h * 0.6, w * 0.6, h);
-    ctx.closePath();
-    ctx.fillStyle = '#d7ccc8';
-    ctx.fill();
-
-    // 阳光透过树叶
-    for (let i = 0; i < 8; i++) {
-      const x = Math.random() * w;
-      const y = Math.random() * h * 0.6;
-      const grad = ctx.createRadialGradient(x, y, 2, x, y, 30 + Math.random() * 20);
-      grad.addColorStop(0, 'rgba(255,255,200,0.3)');
-      grad.addColorStop(1, 'rgba(255,255,200,0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(x - 50, y - 50, 100, 100);
-    }
-
-    // 小草
-    for (let i = 0; i < 40; i++) {
-      ctx.beginPath();
-      const x = Math.random() * w;
-      const y = h * 0.75 + Math.random() * h * 0.25;
-      ctx.moveTo(x, y);
-      ctx.quadraticCurveTo(x + (Math.random() - 0.5) * 8, y - 8 - Math.random() * 6, x + (Math.random() - 0.5) * 4, y - 12 - Math.random() * 8);
-      ctx.strokeStyle = `hsl(120, 50%, ${45 + Math.random() * 20}%)`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-
-    // 小蘑菇
-    const drawMushroom = (x, y) => {
-      ctx.beginPath();
-      ctx.ellipse(x, y, 6, 3, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#d7ccc8';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x, y - 3, 6, Math.PI, Math.PI * 2);
-      ctx.fillStyle = '#ef5350';
-      ctx.fill();
-      // 白点
-      ctx.fillStyle = 'white';
-      ctx.beginPath(); ctx.arc(x - 2, y - 5, 1.5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(x + 2, y - 4, 1, 0, Math.PI * 2); ctx.fill();
-    };
-    drawMushroom(w * 0.25, h * 0.88);
-    drawMushroom(w * 0.72, h * 0.9);
-  },
-
-  starry: (ctx, w, h) => {
-    // 夜空
-    const bg = ctx.createLinearGradient(0, 0, 0, h);
-    bg.addColorStop(0, '#0d1b2a');
-    bg.addColorStop(0.6, '#1b2838');
-    bg.addColorStop(1, '#2e3a59');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
-
-    // 星星
-    for (let i = 0; i < 60; i++) {
-      const x = Math.random() * w;
-      const y = Math.random() * h * 0.7;
-      const r = 0.5 + Math.random() * 1.5;
-      const alpha = 0.5 + Math.random() * 0.5;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 255, 240, ${alpha})`;
-      ctx.fill();
-      // 十字光芒
-      if (Math.random() > 0.7) {
-        ctx.strokeStyle = `rgba(255, 255, 240, ${alpha * 0.5})`;
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(x - r * 3, y); ctx.lineTo(x + r * 3, y);
-        ctx.moveTo(x, y - r * 3); ctx.lineTo(x, y + r * 3);
-        ctx.stroke();
-      }
-    }
-
-    // 月亮
-    ctx.save();
-    ctx.translate(w * 0.75, h * 0.18);
-    const moonGrad = ctx.createRadialGradient(-5, -5, 2, 0, 0, 25);
-    moonGrad.addColorStop(0, '#fff9c4');
-    moonGrad.addColorStop(1, '#fdd835');
-    ctx.fillStyle = moonGrad;
-    ctx.beginPath();
-    ctx.arc(0, 0, 22, 0, Math.PI * 2);
-    ctx.fill();
-    // 月亮阴影
-    ctx.fillStyle = 'rgba(13, 27, 42, 0.15)';
-    ctx.beginPath();
-    ctx.arc(5, -3, 18, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // 月亮光晕
-    const glow = ctx.createRadialGradient(w * 0.75, h * 0.18, 20, w * 0.75, h * 0.18, 70);
-    glow.addColorStop(0, 'rgba(253, 216, 53, 0.1)');
-    glow.addColorStop(1, 'rgba(253, 216, 53, 0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(w * 0.75 - 70, h * 0.18 - 70, 140, 140);
-
-    // 远山
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.65);
-    for (let x = 0; x <= w; x += 10) {
-      const y = h * 0.65 - Math.sin(x * 0.02) * 25 - Math.sin(x * 0.05) * 10;
-      ctx.lineTo(x, y);
-    }
-    ctx.lineTo(w, h * 0.75);
-    ctx.lineTo(0, h * 0.75);
-    ctx.closePath();
-    ctx.fillStyle = '#1a2a3a';
-    ctx.fill();
-
-    // 近山
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.75);
-    for (let x = 0; x <= w; x += 10) {
-      const y = h * 0.75 - Math.sin(x * 0.015 + 1) * 15 - Math.sin(x * 0.04) * 8;
-      ctx.lineTo(x, y);
-    }
-    ctx.lineTo(w, h);
-    ctx.lineTo(0, h);
-    ctx.closePath();
-    ctx.fillStyle = '#15202b';
-    ctx.fill();
-
-    // 水面倒影
-    const reflGrad = ctx.createLinearGradient(0, h * 0.82, 0, h);
-    reflGrad.addColorStop(0, '#1b2838');
-    reflGrad.addColorStop(1, '#0d1b2a');
-    ctx.fillStyle = reflGrad;
-    ctx.fillRect(0, h * 0.82, w, h * 0.18);
-
-    // 水面月光倒影
-    ctx.save();
-    ctx.globalAlpha = 0.15;
-    const reflGrad2 = ctx.createLinearGradient(w * 0.75 - 30, h * 0.82, w * 0.75 + 30, h);
-    reflGrad2.addColorStop(0, '#fdd835');
-    reflGrad2.addColorStop(1, 'transparent');
-    ctx.fillStyle = reflGrad2;
-    ctx.fillRect(w * 0.75 - 30, h * 0.82, 60, h * 0.18);
-    ctx.restore();
-  }
+/* 状态 */
+const S = {
+  level:1, total:100, pieces:[], targets:[], time:0, t0:0, running:false,
+  hints:2, flipped:new Set(), won:false, sound:true, completed:{}, star:3
 };
+let svg, timerHandle=null, seedRng=1;
+function rng(){ seedRng=(seedRng*1664525+1013904223)%4294967296; return seedRng/4294967296; }
+function rint(n){ return Math.floor(rng()*n); }
+function pick(a){ return a[rint(a.length)]; }
+/* ============ 几何工具 ============ */
+function rad(d){return d*Math.PI/180;}
+function rotPt(x,y,a){const c=Math.cos(a),s=Math.sin(a);return [x*c-y*s, x*s+y*c];}
+// 把局部顶点按 rot度旋转 + 平移 -> 世界坐标
+function xform(verts, ox,oy, rot){
+  const a=rad(rot), c=Math.cos(a), s=Math.sin(a), out=[];
+  for(const [x,y] of verts) out.push([ox+x*c-y*s, oy+x*s+y*c]);
+  return out;
+}
+function polyArea(p){let a=0;for(let i=0,n=p.length;i<n;i++){const j=(i+1)%n;a+=p[i][0]*p[j][1]-p[j][0]*p[i][1];}return Math.abs(a)/2;}
+function polyCentroid(p){let A=0,cx=0,cy=0;for(let i=0,n=p.length;i<n;i++){const j=(i+1)%n;const f=p[i][0]*p[j][1]-p[j][0]*p[i][1];A+=f;cx+=(p[i][0]+p[j][0])*f;cy+=(p[i][1]+p[j][1])*f;}A*=0.5;if(Math.abs(A)<1e-9){let x=0,y=0;for(const q of p){x+=q[0];y+=q[1];}return[x/p.length,y/p.length];}return[cx/(6*A),cy/(6*A)];}
+function segInt(a,b,c,d){
+  const r=0; const d1x=b[0]-a[0],d1y=b[1]-a[1],d2x=d[0]-c[0],d2y=d[1]-c[1];
+  const den=d1x*d2y-d1y*d2x; if(Math.abs(den)<1e-9)return null;
+  const t=((c[0]-a[0])*d2y-(c[1]-a[1])*d2x)/den;
+  const u=((c[0]-a[0])*d1y-(c[1]-a[1])*d1x)/den;
+  if(t>1e-6&&t<1-1e-6&&u>1e-6&&u<1-1e-6) return [a[0]+t*d1x, a[1]+t*d1y];
+  return null;
+}
+function ptIn(p,q){let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1];if(((yi>q[1])!=(yj>q[1]))&&(q[0]<(xj-xi)*(q[1]-yi)/((yj-yi)||1e-12)+xi))inside=!inside;}return inside;}
+// 两个多边形是否显著重叠(允许边贴边/顶点接触). 返回重叠面积近似>tol
+function overlap(a,b,tol){
+  for(let i=0;i<a.length;i++){const ai=(i+1)%a.length;for(let j=0;j<b.length;j++){const bj=(j+1)%b.length;if(segInt(a[i],a[ai],b[j],b[bj]))return true;}}
+  for(const q of a) if(ptIn(b,q)) return true;
+  for(const q of b) if(ptIn(a,q)) return true;
+  return false;
+}
+// 边长
+function edgeLen(a,b){const dx=b[0]-a[0],dy=b[1]-a[1];return Math.hypot(dx,dy);}
+function angleOf(dx,dy){return Math.atan2(dy,dx);}
 
-// ========== 游戏核心 ==========
-const Game = {
-  gridSize: 4,
-  pieces: [],
-  placed: [],
-  selected: null,
-  canvas: null,
-  ctx: null,
-  previewCanvas: null,
-  previewCtx: null,
-  pieceSize: 0,
-  imgCanvas: null,
-  imgW: 0,
-  imgH: 0,
-  timerInterval: null,
-  startTime: null,
-  moves: 0,
-  currentTheme: 'cherry',
-  dragging: false,
-  dragPiece: null,
-  dragX: 0,
-  dragY: 0,
-  offsetX: 0,
-  offsetY: 0,
-  completed: false,
-  previewTimeout: null,
-
-  init() {
-    this.canvas = document.getElementById('puzzle-canvas');
-    this.ctx = this.canvas.getContext('2d');
-    this.previewCanvas = document.getElementById('preview-canvas');
-    this.previewCtx = this.previewCanvas.getContext('2d');
-    this.setGridSize(4);
-    this.generateImage();
-    this.shuffle();
-    this.startTimer();
-    this.render();
-  },
-
-  setGridSize(size) {
-    this.gridSize = size;
-    const maxW = Math.min(500, window.innerWidth - 260);
-    this.imgW = Math.min(maxW, 500);
-    this.imgH = this.imgW;
-    this.pieceSize = this.imgW / size;
-    this.canvas.width = this.imgW;
-    this.canvas.height = this.imgH;
-    document.getElementById('pieces-total').textContent = size * size;
-  },
-
-  generateImage() {
-    const offscreen = document.createElement('canvas');
-    offscreen.width = this.imgW;
-    offscreen.height = this.imgH;
-    const ctx = offscreen.getContext('2d');
-    Themes[this.currentTheme](ctx, this.imgW, this.imgH);
-    this.imgCanvas = offscreen;  // 保存 canvas 元素
-    this.previewCtx.clearRect(0, 0, 180, 180);
-    this.previewCtx.drawImage(offscreen, 0, 0, 180, 180);
-  },
-
-  shuffle() {
-    const size = this.gridSize;
-    const total = size * size;
-    this.pieces = [];
-
-    for (let i = 0; i < total; i++) {
-      this.pieces.push({
-        id: i,
-        targetRow: Math.floor(i / size),
-        targetCol: i % size,
-        currentRow: Math.floor(i / size),
-        currentCol: i % size,
-        placed: true,
-      });
-    }
-
-    // 打乱 - 交换随机位置
-    for (let iter = 0; iter < size * size * 3; iter++) {
-      const a = Math.floor(Math.random() * total);
-      const b = Math.floor(Math.random() * total);
-      // 交换位置
-      const tmpR = this.pieces[a].currentRow, tmpC = this.pieces[a].currentCol;
-      this.pieces[a].currentRow = this.pieces[b].currentRow;
-      this.pieces[a].currentCol = this.pieces[b].currentCol;
-      this.pieces[b].currentRow = tmpR;
-      this.pieces[b].currentCol = tmpC;
-    }
-
-    // 标记为未放置（放到画布上的随机位置）
-    this.pieces.forEach(p => {
-      p.placed = false;
-      p.x = Math.random() * (this.imgW - this.pieceSize);
-      p.y = Math.random() * (this.imgH - this.pieceSize);
-    });
-
-    this.placed = new Array(total).fill(false);
-    this.moves = 0;
-    this.completed = false;
-    document.getElementById('moves').textContent = '0';
-    document.getElementById('pieces-done').textContent = '0';
-    this.startTimer();
-    this.render();
-  },
-
-  startTimer() {
-    if (this.timerInterval) clearInterval(this.timerInterval);
-    this.startTime = Date.now();
-    this.timerInterval = setInterval(() => {
-      const elapsed = Date.now() - this.startTime;
-      const min = String(Math.floor(elapsed / 60000)).padStart(2, '0');
-      const sec = String(Math.floor((elapsed % 60000) / 1000)).padStart(2, '0');
-      document.getElementById('timer').textContent = `${min}:${sec}`;
-    }, 1000);
-  },
-
-  render() {
-    const ctx = this.ctx;
-    const size = this.pieceSize;
-
-    // 清空画布
-    ctx.fillStyle = '#f7fafc';
-    ctx.fillRect(0, 0, this.imgW, this.imgH);
-
-    // 绘制网格线
-    ctx.strokeStyle = 'rgba(124, 158, 178, 0.15)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= this.gridSize; i++) {
-      ctx.beginPath();
-      ctx.moveTo(i * size, 0); ctx.lineTo(i * size, this.imgH);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, i * size); ctx.lineTo(this.imgW, i * size);
-      ctx.stroke();
-    }
-
-    // 绘制已放置的碎片
-    this.pieces.forEach(p => {
-      if (p.placed) {
-        ctx.drawImage(
-          this.imgCanvas,
-          p.targetCol * size, p.targetRow * size, size, size,
-          p.targetCol * size, p.targetRow * size, size, size
-        );
-        // 柔和边框
-        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(p.targetCol * size, p.targetRow * size, size, size);
-      }
-    });
-
-    // 绘制未放置的碎片
-    this.pieces.forEach(p => {
-      if (!p.placed) {
-        // 阴影
-        ctx.save();
-        ctx.shadowColor = 'rgba(124, 158, 178, 0.25)';
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
-        ctx.drawImage(
-          this.imgCanvas,
-          p.targetCol * size, p.targetRow * size, size, size,
-          p.x, p.y, size, size
-        );
-        ctx.restore();
-        // 边框
-        ctx.strokeStyle = 'rgba(124, 158, 178, 0.4)';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(p.x, p.y, size, size);
-        // 圆角效果
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-        ctx.lineWidth = 1;
-        this.roundRect(ctx, p.x, p.y, size, size, 3);
-      }
-    });
-
-    // 绘制选中的碎片高亮
-    if (this.selected !== null) {
-      const p = this.pieces[this.selected];
-      if (!p.placed) {
-        ctx.strokeStyle = 'rgba(124, 158, 178, 0.8)';
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([4, 4]);
-        ctx.strokeRect(p.x, p.y, size, size);
-        ctx.setLineDash([]);
-      }
-    }
-
-    // 检查完成
-    this.checkComplete();
-  },
-
-  roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-    ctx.stroke();
-  },
-
-  getPieceAt(x, y) {
-    for (let i = this.pieces.length - 1; i >= 0; i--) {
-      const p = this.pieces[i];
-      if (!p.placed && x >= p.x && x <= p.x + this.pieceSize && y >= p.y && y <= p.y + this.pieceSize) {
-        return i;
-      }
-    }
-    return null;
-  },
-
-  getGridAt(x, y) {
-    const col = Math.floor(x / this.pieceSize);
-    const row = Math.floor(y / this.pieceSize);
-    if (col >= 0 && col < this.gridSize && row >= 0 && row < this.gridSize) {
-      return { row, col };
-    }
-    return null;
-  },
-
-  snapPiece(pieceIdx) {
-    const p = this.pieces[pieceIdx];
-    const grid = this.getGridAt(p.x + this.pieceSize / 2, p.y + this.pieceSize / 2);
-    if (grid && !this.placed[grid.row * this.gridSize + grid.col]) {
-      // 检查是否是正确的位置
-      if (grid.row === p.targetRow && grid.col === p.targetCol) {
-        p.placed = true;
-        this.placed[grid.row * this.gridSize + grid.col] = true;
-        this.moves++;
-        document.getElementById('moves').textContent = this.moves;
-        const done = this.placed.filter(Boolean).length;
-        document.getElementById('pieces-done').textContent = done;
-        AudioSystem.playSnap();
-        this.render();
-        return true;
-      }
-    }
-    return false;
-  },
-
-  checkComplete() {
-    if (this.completed) return;
-    const done = this.placed.filter(Boolean).length;
-    if (done === this.gridSize * this.gridSize) {
-      this.completed = true;
-      clearInterval(this.timerInterval);
-      AudioSystem.playComplete();
-      const elapsed = Date.now() - this.startTime;
-      const min = String(Math.floor(elapsed / 60000)).padStart(2, '0');
-      const sec = String(Math.floor((elapsed % 60000) / 1000)).padStart(2, '0');
-      document.getElementById('modal-msg').innerHTML =
-        `你用了 <strong>${this.moves}</strong> 次移动，耗时 <strong>${min}:${sec}</strong>`;
-      setTimeout(() => {
-        document.getElementById('modal').classList.add('show');
-      }, 500);
-    }
-  },
-
-  // 触摸/鼠标事件
-  setupEvents() {
-    const canvas = this.canvas;
-
-    const getPos = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return {
-        x: (clientX - rect.left) * (canvas.width / rect.width),
-        y: (clientY - rect.top) * (canvas.height / rect.height)
-      };
-    };
-
-    const onDown = (e) => {
-      e.preventDefault();
-      AudioSystem.ensureCtx();
-      const pos = getPos(e);
-      const pieceIdx = this.getPieceAt(pos.x, pos.y);
-      if (pieceIdx !== null) {
-        this.dragging = true;
-        this.dragPiece = pieceIdx;
-        this.selected = pieceIdx;
-        const p = this.pieces[pieceIdx];
-        this.offsetX = pos.x - p.x;
-        this.offsetY = pos.y - p.y;
-        AudioSystem.playPickup();
-        this.render();
-      }
-    };
-
-    const onMove = (e) => {
-      e.preventDefault();
-      if (!this.dragging) return;
-      const pos = getPos(e);
-      const p = this.pieces[this.dragPiece];
-      p.x = pos.x - this.offsetX;
-      p.y = pos.y - this.offsetY;
-      this.render();
-    };
-
-    const onUp = (e) => {
-      if (!this.dragging) return;
-      const snapped = this.snapPiece(this.dragPiece);
-      if (!snapped) {
-        // 松手后碎片回到上一次位置（或者可以添加弹性动画）
-      }
-      this.dragging = false;
-      this.dragPiece = null;
-      this.selected = null;
-      this.render();
-    };
-
-    canvas.addEventListener('mousedown', onDown);
-    canvas.addEventListener('mousemove', onMove);
-    canvas.addEventListener('mouseup', onUp);
-    canvas.addEventListener('mouseleave', onUp);
-    canvas.addEventListener('touchstart', onDown, { passive: false });
-    canvas.addEventListener('touchmove', onMove, { passive: false });
-    canvas.addEventListener('touchend', onUp);
+/* ============ 关卡生成器(边匹配随机拼装) ============ */
+// 返回 [{type, inst, ox, oy, rot}] 已是世界坐标
+function genLevel(level){
+  // 难度: 决定使用块数
+  let np;
+  if(level<=8) np=[3,4][rint(2)];
+  else if(level<=20) np=[4,5][rint(2)];
+  else if(level<=40) np=[5,6][rint(2)];
+  else np=7;
+  for(let attempt=0;attempt<400;attempt++){
+    const r=tryAssemble(np, level+attempt*7);
+    if(r) return r;
   }
-};
-
-// ========== UI 控制 ==========
-function closeModal() {
-  document.getElementById('modal').classList.remove('show');
-  Game.shuffle();
+  // 兜底: 退化为简单3块
+  return tryAssemble(3, level+999) || fallbackLevel();
 }
-
-function changeTheme(theme) {
-  Game.currentTheme = theme;
-  Game.generateImage();
-  Game.shuffle();
-  AudioSystem.playPickup();
+function fallbackLevel(){ // 简单的2大三角拼正方形
+  return [
+    {type:'lt',inst:0,ox:0,oy:0,rot:0},
+    {type:'lt',inst:1,ox:2,oy:2,rot:180}
+  ];
 }
-
-function changeDifficulty(size) {
-  Game.setGridSize(parseInt(size));
-  Game.generateImage();
-  Game.shuffle();
+// 取一块的世界多边形
+function worldOf(def){
+  const d=PIECE_DEFS[def.type];
+  return xform(d.verts, def.ox, def.oy, def.rot);
 }
-
-// 预览闪烁
-function showOriginal() {
-  const canvas = Game.canvas;
-  const ctx = Game.ctx;
-  const imgCanvas = Game.imgCanvas;
-
-  // 短暂显示原图
-  ctx.drawImage(imgCanvas, 0, 0);
-  // 网格线
-  const size = Game.pieceSize;
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= Game.gridSize; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * size, 0); ctx.lineTo(i * size, Game.imgH);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, i * size); ctx.lineTo(Game.imgW, i * size);
-    ctx.stroke();
-  }
-
-  if (Game.previewTimeout) clearTimeout(Game.previewTimeout);
-  Game.previewTimeout = setTimeout(() => Game.render(), 1200);
-}
-
-// ========== 初始化 ==========
-window.addEventListener('DOMContentLoaded', () => {
-  // 花瓣动画
-  const petalsContainer = document.getElementById('petals');
-  for (let i = 0; i < 18; i++) {
-    const petal = document.createElement('div');
-    petal.className = 'petal';
-    petal.style.left = Math.random() * 100 + '%';
-    petal.style.animationDuration = (6 + Math.random() * 8) + 's';
-    petal.style.animationDelay = (Math.random() * 10) + 's';
-    petal.style.width = (8 + Math.random() * 8) + 'px';
-    petal.style.height = (8 + Math.random() * 8) + 'px';
-    petal.style.opacity = 0.3 + Math.random() * 0.4;
-    petalsContainer.appendChild(petal);
-  }
-
-  // 初始化游戏
-  Game.init();
-  Game.setupEvents();
-
-  // 按钮事件
-  document.getElementById('btn-shuffle').addEventListener('click', () => {
-    Game.shuffle();
-    AudioSystem.playPickup();
-  });
-
-  document.getElementById('btn-show-original').addEventListener('click', showOriginal);
-
-  // 音效开关
-  document.getElementById('btn-sound').addEventListener('click', function() {
-    AudioSystem.soundOn = !AudioSystem.soundOn;
-    this.textContent = AudioSystem.soundOn ? '🔊' : '🔇';
-  });
-
-  // 音乐开关
-  document.getElementById('btn-music').addEventListener('click', function() {
-    AudioSystem.musicOn = !AudioSystem.musicOn;
-    this.textContent = AudioSystem.musicOn ? '🎵' : '🎵';
-    if (AudioSystem.musicOn) {
-      AudioSystem.musicOn = true;
-      AudioSystem.startMusic();
-    } else {
-      AudioSystem.stopMusic();
+// 装配
+function tryAssemble(np, sd){
+  seedRng = (sd*2654435761>>>0) || 1; rng();
+  // 选择块: 优先多样的子集
+  const chosen = pickSubset(np);
+  // 放第一块
+  const placed=[];
+  const first = chosen[0];
+  placed.push({type:first.type, inst:first.inst, ox:0, oy:0, rot: pick([0,45,90,135,180,225,270,315])});
+  for(let k=1;k<chosen.length;k++){
+    const pc = chosen[k];
+    let done=false;
+    const tries = 60;
+    for(let t=0;t<tries && !done;t++){
+      // 随机选一个已放块的边
+      const anchor = placed[rint(placed.length)];
+      const aw = worldOf(anchor);
+      const aEdges=[]; for(let i=0;i<aw.length;i++){const j=(i+1)%aw.length;aEdges.push([i,j,edgeLen(aw[i],aw[j])]);}
+      const ae = pick(aEdges);
+      // 新块同长边
+      const d=PIECE_DEFS[pc.type];
+      const bEdges=[]; for(let i=0;i<d.verts.length;i++){const j=(i+1)%d.verts.length;bEdges.push([i,j,edgeLen(d.verts[i],d.verts[j])]);}
+      const cands=bEdges.filter(e=>Math.abs(e[2]-ae[2])<1e-3);
+      if(cands.length===0) continue;
+      const be=pick(cands);
+      // 将新块的be边贴合到anchor的ae边的外侧(反向方向)
+      const a0=aw[ae[0]], a1=aw[ae[1]];
+      const b0=d.verts[be[0]], b1=d.verts[be[1]];
+      // 旋转使 b1->b0 方向 == a0->a1 方向 (这样b0落到a1, b1落到a0, 边反向贴合, 互在外侧)
+      const angA = angleOf(a1[0]-a0[0], a1[1]-a0[1]);
+      const angB = angleOf(b0[0]-b1[0], b0[1]-b1[1]);
+      let rot = (angA-angB)*180/Math.PI;
+      rot = Math.round(rot/45)*45; // 量化到45度(保证栅格对齐)
+      // 世界顶点
+      const wb = xform(d.verts, 0,0, rot);
+      // 平移使 be 边贴合: wb[be[0]] 应等于 a1, wb[be[1]] 等于 a0
+      const ox = a1[0]-wb[be[0]][0], oy = a1[1]-wb[be[0]][1];
+      const cand={type:pc.type, inst:pc.inst, ox:ox, oy:oy, rot:((rot%360)+360)%360};
+      const cw = worldOf(cand);
+      // 重叠检查
+      let bad=false;
+      for(const p of placed){ if(overlap(worldOf(p), cw, 1e-3)){bad=true;break;} }
+      if(bad) continue;
+      placed.push(cand); done=true;
     }
-  });
+    if(!done) return null;
+  }
+  return placed;
+}
+// 选子集: 尽量含多样块. 返回 [{type,inst}]
+function pickSubset(np){
+  const pool = [{type:'lt',inst:0},{type:'lt',inst:1},{type:'mt',inst:0},{type:'st',inst:0},{type:'st',inst:1},{type:'sq',inst:0},{type:'pg',inst:0}];
+  // 打乱
+  for(let i=pool.length-1;i>0;i--){const j=rint(i+1);[pool[i],pool[j]]=[pool[j],pool[i]];}
+  return pool.slice(0, Math.min(np,7));
+}
+/* ============ 渲染层 ============ */
+let VIEW={cx:500,cy:340,sc:64}; // 视图中心与缩放(像素/单位)
+function fitView(targets){
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  const scan=(defs)=>{ for(const t of defs){ const w=worldOf(t); for(const[x,y]of w){minx=Math.min(minx,x);maxx=Math.max(maxx,x);miny=Math.min(miny,y);maxy=Math.max(maxy,y);} } };
+  scan(targets); if(S.pieces&&S.pieces.length) scan(S.pieces);
+  const w=maxx-minx, h=maxy-miny;
+  const pad=80;
+  const scx=(1000-pad*2)/Math.max(w,0.1), scy=(620-pad*2)/Math.max(h,0.1);
+  VIEW.sc=Math.min(scx,scy,82);
+  VIEW.cx=500-((minx+maxx)/2)*VIEW.sc;
+  VIEW.cy=330-((miny+maxy)/2)*VIEW.sc;
+}
+function w2s(x,y){return [VIEW.cx+x*VIEW.sc, VIEW.cy+y*VIEW.sc];}
+function s2w(sx,sy){return [(sx-VIEW.cx)/VIEW.sc, (sy-VIEW.cy)/VIEW.sc];}
+function polyPts(w){return w.map(p=>{const[sx,sy]=w2s(p[0],p[1]);return sx.toFixed(1)+','+sy.toFixed(1);}).join(' ');}
+function instKey(t){ return t.type+(t.type==='lt'?t.inst:(t.type==='st'?t.inst:0)); }
 
-  // 难度按钮
-  document.querySelectorAll('.diff-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      changeDifficulty(this.dataset.size);
+function renderStage(){
+  fitView(S.targets);
+  const svgEl=document.getElementById('svg');
+  // 目标轮廓: 每块填充阴影色 + 描边(同色合并外观, 外边界自动正确, 含凹陷)
+  let sil='';
+  for(const t of S.targets){
+    const w=worldOf(t);
+    sil += `<polygon points="${polyPts(w)}" fill="#b9a888" stroke="#8a7858" stroke-width="1.5" stroke-linejoin="round" opacity="0.6"/>`;
+  }
+  // 玩家块
+  let pcs='';
+  for(const p of S.pieces){
+    const w=worldOf(p);
+    const col = COLORS[instKey(p)] || PIECE_DEFS[p.type].color;
+    const cls = 'pc'+(p.locked?' locked':'')+(p.hint?' hint':'')+(p.dragging?' dragging':'');
+    pcs += `<polygon class="${cls}" data-id="${p.id}" points="${polyPts(w)}" fill="${col}" stroke="#3a2f23" stroke-width="1.5" stroke-linejoin="round" opacity="${p.locked?0.92:1}" filter="${p.locked?'':'url(#sh)'}"/>`;
+  }
+  svgEl.innerHTML = `
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#3a2f23" flood-opacity="0.28"/>
+    </filter>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#c9b48a" opacity="0.25"/></pattern>
+  </defs>
+  <rect x="0" y="0" width="1000" height="700" fill="url(#dots)"/>
+  <g id="sil">${sil}</g>
+  <g id="pcs">${pcs}</g>`;
+  bindPieces();
+}
+// 简化轮廓: 直接用所有目标顶点的凸包不太准确; 改用: 把每个目标块画一次(同色)合并视觉即可.
+// 这里 outlineOf 返回所有块合并的外边界近似(凸包), 仅作描边装饰.
+function outlineOf(targets){
+  const pts=[];
+  for(const t of targets){ const w=worldOf(t); for(const p of w) pts.push(p); }
+  const ch=convexHull(pts);
+  return ch.map(p=>{const[sx,sy]=w2s(p[0],p[1]);return sx.toFixed(1)+','+sy.toFixed(1);}).join(' ');
+}
+function convexHull(pts){
+  pts.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const cross=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lower=[];
+  for(const p of pts){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],p)<=0)lower.pop();lower.push(p);}
+  const upper=[];
+  for(let i=pts.length-1;i>=0;i--){const p=pts[i];while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],p)<=0)upper.pop();upper.push(p);}
+  upper.pop();lower.pop();
+  return lower.concat(upper);
+}
+/* ============ 交互: 拖动 / 双击旋转 / 吸附 ============ */
+let drag=null, lastClick={id:null,t:0};
+function svgPt(e){
+  const svgEl=document.getElementById('svg');
+  const pt=svgEl.createSVGPoint(); pt.x=e.clientX; pt.y=e.clientY;
+  const m=svgEl.getScreenCTM().inverse();
+  const p=pt.matrixTransform(m); return [p.x,p.y];
+}
+function bindPieces(){
+  const els=document.querySelectorAll('.pc');
+  for(const el of els){
+    el.addEventListener('pointerdown', onDown);
+  }
+}
+function pieceById(id){ return S.pieces.find(p=>p.id===id); }
+function onDown(e){
+  e.preventDefault();
+  const id=e.currentTarget.dataset.id;
+  const p=pieceById(id);
+  if(!p||p.locked) return;
+  startAudio();
+  // 双击/双击检测: 同一块 320ms 内再次按下 => 旋转45度(兼容触屏)
+  const now=Date.now();
+  if(lastClick.id===id && now-lastClick.t<340){
+    lastClick={id:null,t:0};
+    playSfx('rot');
+    rotateAroundCentroid(p, 45);
+    updatePieceEl(p);
+    trySnap(p);
+    return;
+  }
+  lastClick={id,t:now};
+  playSfx('pick');
+  const [sx,sy]=svgPt(e);
+  const [wx,wy]=s2w(sx,sy);
+  drag={id, dx:wx-p.ox, dy:wy-p.oy, moved:false};
+  e.currentTarget.setPointerCapture(e.pointerId);
+  e.currentTarget.classList.add('dragging');
+  p.dragging=true;
+  document.addEventListener('pointermove',onMove);
+  document.addEventListener('pointerup',onUp);
+}
+function onMove(e){
+  if(!drag) return;
+  const p=pieceById(drag.id); if(!p) return;
+  const [sx,sy]=svgPt(e);
+  const [wx,wy]=s2w(sx,sy);
+  p.ox=wx-drag.dx; p.oy=wy-drag.dy;
+  drag.moved=true;
+  updatePieceEl(p);
+}
+function onUp(e){
+  document.removeEventListener('pointermove',onMove);
+  document.removeEventListener('pointerup',onUp);
+  if(!drag) return;
+  const p=pieceById(drag.id);
+  if(p){ p.dragging=false; const el=document.querySelector('.pc[data-id="'+p.id+'"]'); if(el) el.classList.remove('dragging'); }
+  drag=null;
+  if(p) trySnap(p);
+}
+function rotateAroundCentroid(p, deg){
+  const w=worldOf(p); const c=polyCentroid(w);
+  p.rot=(p.rot+deg)%360;
+  // 保持质心不动: 调整 ox,oy
+  const w2=worldOf(p); const c2=polyCentroid(w2);
+  p.ox+=c[0]-c2[0]; p.oy+=c[1]-c2[1];
+}
+function updatePieceEl(p){
+  const el=document.querySelector('.pc[data-id="'+p.id+'"]');
+  if(!el){ renderStage(); return; }
+  const w=worldOf(p);
+  el.setAttribute('points', polyPts(w));
+}
+// 吸附: 寻找匹配目标(同类型), 质心接近 & 旋转匹配(模对称)
+function trySnap(p){
+  if(p.locked) return;
+  const wc=polyCentroid(worldOf(p));
+  let best=null, bestD=SNAP_PX;
+  for(let i=0;i<S.targets.length;i++){
+    const t=S.targets[i];
+    if(t.type!==p.type) continue;
+    if(t.satisfied) continue;
+    // 同类型多实例可互换: lt/st 两块都可
+    const tc=polyCentroid(worldOf(t));
+    const d=Math.hypot(wc[0]-tc[0], wc[1]-tc[1]);
+    if(d>bestD) continue;
+    // 旋转匹配(模对称): 取旋转周期内最近等效角度
+    const sym=SYM[p.type]||0;
+    const period = sym>0 ? sym : 360;
+    let dd = Math.abs(((p.rot-t.rot)%360+360)%360) % period;
+    let dist = Math.min(dd, period-dd);
+    if(dist>SNAP_DEG) continue;
+    best=i; bestD=d;
+  }
+  if(best!==null){
+    const t=S.targets[best];
+    p.ox=t.ox; p.oy=t.oy; p.rot=t.rot;
+    p.locked=true; t.satisfied=true;
+    updatePieceEl(p);
+    playSfx('ding');
+    checkWin();
+  }
+}
+/* ============ 关卡流程 ============ */
+function startLevel(n){
+  S.level=Math.max(1,Math.min(S.total,n));
+  S.won=false; S.hints=2; S.star=3;
+  S.targets = genLevel(S.level);
+  for(const t of S.targets) t.satisfied=false;
+  // 计算目标bbox, 在其外环散布玩家块
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  for(const t of S.targets){ const w=worldOf(t); for(const[x,y]of w){minx=Math.min(minx,x);maxx=Math.max(maxx,x);miny=Math.min(miny,y);maxy=Math.max(maxy,y);} }
+  const cx=(minx+maxx)/2, cy=(miny+maxy)/2;
+  const R = Math.max(2.6, Math.hypot(maxx-minx, maxy-miny)/2 + 1.6);
+  S.pieces = S.targets.map((t,i)=>{
+    const ang=(i/S.targets.length)*Math.PI*2 - Math.PI/2;
+    return {id:'p'+i, type:t.type, inst:t.inst,
+      ox:cx+Math.cos(ang)*R, oy:cy+Math.sin(ang)*R,
+      rot:pick([0,45,90,135,180,225,270,315]),
+      locked:false, hint:false, dragging:false};
+  });
+  document.getElementById('lvNum').textContent=S.level;
+  document.getElementById('hintLeft').textContent=S.hints;
+  updateStarView();
+  renderStage();
+  startTimer();
+  hidePanel();
+  buildLvlBar();
+}
+function startTimer(){
+  stopTimer(); S.t0=Date.now(); S.time=0; S.running=true;
+  timerHandle=setInterval(()=>{
+    S.time=(Date.now()-S.t0)/1000;
+    document.getElementById('timer').textContent=fmt(S.time);
+    updateStarView();
+  },250);
+}
+function stopTimer(){ if(timerHandle){clearInterval(timerHandle);timerHandle=null;} S.running=false; }
+function fmt(s){const m=Math.floor(s/60), sec=Math.floor(s%60);return m+':'+String(sec).padStart(2,'0');}
+// 星级阈值(秒): 依块数缩放
+function starThresholds(np){
+  const base={3:[15,30,60],4:[25,50,90],5:[35,70,120],6:[50,100,170],7:[70,140,230]};
+  return base[np]||base[7];
+}
+function calcStars(){
+  const np=S.targets.length;
+  const th=starThresholds(np);
+  if(S.time<=th[0]) return 3; if(S.time<=th[1]) return 2; if(S.time<=th[2]) return 1; return 1;
+}
+function updateStarView(){
+  if(!S.running){ const c=(S.completed[S.level]||{}).star||0; document.getElementById('starView').textContent=starStr(c||S.star); return; }
+  const s=calcStars(); S.star=s; document.getElementById('starView').textContent=starStr(s);
+}
+function starStr(n){ return '★'.repeat(n)+'☆'.repeat(3-n); }
+function checkWin(){
+  if(S.targets.every(t=>t.satisfied)){
+    S.won=true; stopTimer();
+    const star=calcStars();
+    const prev=(S.completed[S.level]||{}).star||0;
+    const best=Math.max(prev,star);
+    S.completed[S.level]={star:best, time:S.time};
+    updateStarView(); buildLvlBar();
+    playSfx('win');
+    setTimeout(()=>showWinPanel(star), 350);
+    saveProgress();
+  }
+}
+function showWinPanel(star){
+  const p=document.createElement('div'); p.className='panel'; p.id='winPanel';
+  p.innerHTML=`<h2>完成!</h2><div class="bigstars">${'★'.repeat(star)+'☆'.repeat(3-star)}</div>
+    <p>用时 ${fmt(S.time)} · 第 ${S.level} 关</p>
+    <div class="row">
+      <button id="wpRetry">↺ 再来</button>
+      <button class="primary" id="wpNext">下一关 ›</button>
+    </div>`;
+  document.querySelector('main').appendChild(p);
+  document.getElementById('wpRetry').onclick=()=>{startLevel(S.level);};
+  document.getElementById('wpNext').onclick=()=>{startLevel(Math.min(S.total,S.level+1));};
+}
+function hidePanel(){ const p=document.getElementById('winPanel'); if(p) p.remove(); }
+function useHint(){
+  if(S.hints<=0){ toast('提示已用完'); return; }
+  if(S.won) return;
+  // 找一个未满足的目标 & 对应玩家块
+  let ti=S.targets.findIndex(t=>!t.satisfied);
+  if(ti<0) return;
+  const t=S.targets[ti];
+  const p=S.pieces.find(pp=>!pp.locked && pp.type===t.type && pp.inst===t.inst);
+  const piece=p||S.pieces.find(pp=>!pp.locked && pp.type===t.type);
+  if(!piece){ toast('无可提示的块'); return; }
+  piece.ox=t.ox; piece.oy=t.oy; piece.rot=t.rot; piece.locked=true; piece.hint=true;
+  t.satisfied=true; S.hints--;
+  document.getElementById('hintLeft').textContent=S.hints;
+  updatePieceEl(piece);
+  playSfx('ding');
+  toast('已显示一块的正确位置');
+  checkWin();
+}
+function toast(msg){
+  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),1600);
+}
+function buildLvlBar(){
+  const bar=document.getElementById('lvlbar'); bar.innerHTML='';
+  // 显示当前关附近 25 关
+  const from=Math.max(1,S.level-12), to=Math.min(S.total,from+24);
+  for(let i=from;i<=to;i++){
+    const b=document.createElement('button');
+    b.textContent=i;
+    const c=(S.completed[i]||{}).star||0;
+    if(i===S.level) b.className='cur'; else if(c>0) b.className='done';
+    b.onclick=()=>startLevel(i);
+    bar.appendChild(b);
+  }
+  // 滚到当前
+  const cur=bar.querySelector('.cur'); if(cur) cur.scrollIntoView({inline:'center',block:'nearest'});
+}
+function saveProgress(){
+  try{ localStorage.setItem('tangram_progress', JSON.stringify({level:S.level,completed:S.completed})); }catch(e){}
+}
+function loadProgress(){
+  try{ const d=JSON.parse(localStorage.getItem('tangram_progress')||'{}'); if(d.completed) S.completed=d.completed; if(d.level) S.level=d.level; }catch(e){}
+}
+/* ============ 音频(Web Audio合成) ============ */
+let AC=null, master=null, bgmGain=null, bgmTimer=null, bgmOn=false;
+function startAudio(){
+  if(AC) return;
+  try{
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    master=AC.createGain(); master.gain.value=0.9; master.connect(AC.destination);
+    bgmGain=AC.createGain(); bgmGain.gain.value=0; bgmGain.connect(master);
+  }catch(e){ console.warn('audio unavailable',e); }
+}
+function tone(freq, t0, dur, type, vol, glideTo){
+  if(!AC) return;
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=type||'sine'; o.frequency.setValueAtTime(freq, t0);
+  if(glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, t0+dur);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol, t0+0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  o.connect(g); g.connect(master); o.start(t0); o.stop(t0+dur+0.02);
+}
+function playSfx(name){
+  if(!S.sound||!AC) return;
+  const now=AC.currentTime;
+  if(name==='pick'){ tone(520, now, 0.06,'square',0.18, 380); }
+  else if(name==='ding'){ tone(880, now, 0.5,'sine',0.28); tone(1320, now, 0.5,'sine',0.14); }
+  else if(name==='rot'){ tone(300, now, 0.18,'sawtooth',0.12, 620); }
+  else if(name==='win'){
+    const sc=[523,659,784,1047,1319];
+    sc.forEach((f,i)=>tone(f, now+i*0.12, 0.4,'triangle',0.26));
+  }
+}
+// BGM: 舒缓古典吉他风 - 分解和弦循环
+const CHORDS=[
+  [57,60,64,67],[55,59,62,67],[53,57,60,65],[52,55,60,64] // Am,G,F,E(ish)
+];
+function startBgm(){
+  if(!AC||bgmOn) return;
+  bgmOn=true; bgmGain.gain.cancelScheduledValues(AC.currentTime);
+  bgmGain.gain.linearRampToValueAtTime(0.16, AC.currentTime+1.5);
+  let bar=0;
+  function playBar(){
+    if(!bgmOn) return;
+    const chord=CHORDS[bar%CHORDS.length];
+    const t=AC.currentTime;
+    // 指弹分解: 低音 + 上行琶音
+    const pat=[0,2,1,3,1,2,0,3];
+    pat.forEach((idx,i)=>{
+      const f=midi2freq(chord[idx]);
+      const o=AC.createOscillator(), g=AC.createGain();
+      o.type='triangle'; o.frequency.value=f;
+      const tt=t+i*0.28;
+      g.gain.setValueAtTime(0,tt);
+      g.gain.linearRampToValueAtTime(0.22, tt+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, tt+0.5);
+      // 略加暖色: 低通
+      const lp=AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=2200;
+      o.connect(g); g.connect(lp); lp.connect(bgmGain);
+      o.start(tt); o.stop(tt+0.6);
     });
-  });
+    bar++;
+    bgmTimer=setTimeout(playBar, 0.28*8*1000+40);
+  }
+  playBar();
+}
+function stopBgm(){
+  bgmOn=false; if(bgmTimer){clearTimeout(bgmTimer);bgmTimer=null;}
+  if(bgmGain) bgmGain.gain.linearRampToValueAtTime(0, AC.currentTime+0.4);
+}
+function midi2freq(m){return 440*Math.pow(2,(m-69)/12);}
 
-  // 主题按钮
-  document.querySelectorAll('.theme-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      changeTheme(this.dataset.theme);
-    });
+/* ============ 初始化与事件绑定 ============ */
+function init(){
+  loadProgress();
+  // 按钮
+  document.getElementById('btnHint').onclick=useHint;
+  document.getElementById('btnReset').onclick=()=>startLevel(S.level);
+  document.getElementById('btnPrev').onclick=()=>startLevel(S.level-1);
+  document.getElementById('btnNext').onclick=()=>startLevel(S.level+1);
+  document.getElementById('btnSound').onclick=toggleSound;
+  // 键盘: R旋转选中, Esc关闭面板
+  document.addEventListener('keydown',e=>{
+    if(e.key==='r'||e.key==='R'){ const p=S.pieces.find(pp=>!pp.locked); if(p){ rotateAroundCentroid(p,45); updatePieceEl(p); trySnap(p); playSfx('rot'); } }
   });
-
-  // 音量滑块
-  document.getElementById('volume-slider').addEventListener('input', function() {
-    const v = this.value / 100;
-    AudioSystem.setVolume(v);
-    document.getElementById('vol-label').textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
-  });
-
-  // 首次交互后启动音乐
-  const startAudio = () => {
-    AudioSystem.ensureCtx();
-    if (AudioSystem.musicOn) AudioSystem.startMusic();
-    document.removeEventListener('click', startAudio);
-    document.removeEventListener('touchstart', startAudio);
-  };
-  document.addEventListener('click', startAudio);
-  document.addEventListener('touchstart', startAudio);
-});
+  // 首次交互启动音频
+  const wake=()=>{ startAudio(); if(S.sound) startBgm(); window.removeEventListener('pointerdown',wake); };
+  window.addEventListener('pointerdown',wake);
+  startLevel(S.level);
+}
+function toggleSound(){
+  S.sound=!S.sound;
+  document.getElementById('btnSound').textContent=S.sound?'🔊':'🔇';
+  if(S.sound){ startAudio(); startBgm(); } else stopBgm();
+}
+init();
+</script>
 </script>
 </body>
 </html>
